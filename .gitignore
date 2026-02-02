@@ -1,0 +1,6 @@
+**/Output/**
+.venv
+.cache/*
+.lit_test_times.txt
+.vscode
+**/build/**

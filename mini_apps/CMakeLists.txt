@@ -1,0 +1,2 @@
+add_subdirectory(fully_connected_nn)
+add_subdirectory(perf)

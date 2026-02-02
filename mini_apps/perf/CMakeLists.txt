@@ -1,0 +1,5 @@
+if(${BUILD_TARGET} STREQUAL "X86")
+  add_subdirectory(x86)
+elseif(${BUILD_TARGET} STREQUAL "Hexagon")
+  add_subdirectory(hexagon)
+endif()
