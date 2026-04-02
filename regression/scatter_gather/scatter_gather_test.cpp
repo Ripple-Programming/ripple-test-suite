@@ -159,7 +159,7 @@ public:
   bool verify() const override {
     std::vector<T> RefOutput(SparseLen);
     std::fill(RefOutput.begin(), RefOutput.end(), -1);
-    ref_scatter(DenseLen, Indexes->s, &RefOutput[0], SparseLen, Sparse->s);
+    ref_scatter(DenseLen, Indexes->s, Dense->s, SparseLen, &RefOutput[0]);
     bool ret = true;
     for (size_t i = 0; i != SparseLen; ++i) {
       if (Sparse->s[i] != RefOutput[i])

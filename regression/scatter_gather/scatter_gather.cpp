@@ -43,7 +43,7 @@ void Ripple_scatter(size_t N, const IT *indexes, const T *source,
       ripple_set_block_shape(0, VectorSizeChooser<T>::VectorSize / sizeof(T));
   ripple_parallel(BS, 0);
   for (size_t i = 0; i < N; i++)
-    hvx_scatter(destination, indexes[i], source[i], N);
+    hvx_scatter(destination, indexes[i], source[i], SparseLen);
 }
 
 template void Ripple_gather(size_t N, const int16_t *indexes,
