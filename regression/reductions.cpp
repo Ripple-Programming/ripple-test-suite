@@ -63,36 +63,83 @@ template <typename T, ReduceOp Op> T reduce_update(const T &acc, const T &x) {
   return Reduce<Op, T>::update(acc, x);
 }
 
-template <typename T, unsigned K, ReduceOp O>
+template <ReduceOp O, unsigned BK, typename T>
+T reduce_1d(unsigned K, const T *X) {
+  auto BS = ripple_set_block_shape(0, BK);
+  T acc = neutral_element<T, O>();
+  ripple_parallel(BS, 0);
+  for (unsigned i = 0; i < K; i++)
+    acc = reduce_update<T, O>(acc, X[i]);
+  return reduce_op<0b1, O>(acc);
+}
+
+template <ReduceOp O, unsigned BK, unsigned K, typename T>
 void reduce_1d(int N, const T (*X)[K], T *Y) {
-  auto BS = ripple_set_block_shape(0, K);
-  size_t v0 = ripple_id(BS, 0);
   for (int i = 0; i < N; i++)
-    Y[i] = reduce_op<0b1, O>(X[i][v0]);
+    Y[i] = reduce_1d<O, BK>(K, X[i]);
 }
 
-template <typename T, unsigned K, unsigned L, ReduceOp O>
+template <ReduceOp O, size_t L, typename T>
+T prereduce_2d(ripple_block_t BS, size_t K, const T (*X)[L]) {
+  T acc = neutral_element<T, O>();
+  ripple_parallel(BS, 1);
+  for (size_t i = 0; i < K; i++) {
+    ripple_parallel(BS, 0);
+    for (size_t j = 0; j < L; j++)
+      acc = reduce_update<T, O>(acc, X[i][j]);
+  }
+  return acc;
+}
+
+template <ReduceOp O, unsigned BK, unsigned BL, size_t L, typename T>
+T reduce_2d_0(size_t K, const T (*X)[L]) {
+  auto BS = ripple_set_block_shape(0, BL, BK);
+  T acc = prereduce_2d<O, L>(BS, K, X);
+  return reduce_op<0b11, O>(acc);
+}
+
+template <ReduceOp O, unsigned BK, unsigned BL, unsigned K, unsigned L, typename T>
 void reduce_2d_0(int N, const T (*X)[K][L], T *Y) {
-  auto BS = ripple_set_block_shape(0, L, K);
-  size_t v0 = ripple_id(BS, 0), v1 = ripple_id(BS, 1);
   for (int i = 0; i < N; i++)
-    Y[i] = reduce_op<0b11, O>(X[i][v1][v0]);
+    Y[i] = reduce_2d_0<O, BK, BL, L>(K, X[i]);
 }
 
-template <typename T, unsigned K, unsigned L, ReduceOp O>
+template <ReduceOp O, unsigned BK, unsigned BL, size_t L, typename T>
+void reduce_2d_1(size_t K, const T (*X)[L], T *Y) {
+  auto BS = ripple_set_block_shape(0, BL, BK);
+  ripple_parallel(BS, 1);
+  for (size_t i = 0; i < K; i++) {
+    T acc = neutral_element<T, O>();
+    ripple_parallel(BS, 0);
+    for (size_t j = 0; j < L; j++)
+      acc = reduce_update<T, O>(acc, X[i][j]);
+    Y[i] = reduce_op<0b1, O>(acc);
+  }
+}
+
+template <ReduceOp O, unsigned BK, unsigned BL, unsigned K, unsigned L, typename T>
 void reduce_2d_1(int N, const T (*X)[K][L], T (*Y)[K]) {
-  auto BS = ripple_set_block_shape(0, L, K);
-  size_t v0 = ripple_id(BS, 0), v1 = ripple_id(BS, 1);
   for (int i = 0; i < N; i++)
-    Y[i][v1] = reduce_op<0b1, O>(X[i][v1][v0]);
+    reduce_2d_1<O, BK, BL, L>(K, X[i], Y[i]);
 }
 
-template <typename T, unsigned K, unsigned L, ReduceOp O>
-void reduce_2d_2(int N, const T (*X)[K][L], T (*Y)[L]) {
-  auto BS = ripple_set_block_shape(0, L, K);
-  size_t v0 = ripple_id(BS, 0), v1 = ripple_id(BS, 1);
+template <ReduceOp O, unsigned BK, unsigned BL, size_t L, typename T>
+void reduce_2d_2(size_t K, const T (*X)[L], T *Y) {
+  auto BS = ripple_set_block_shape(0, BL, BK);
+  ripple_parallel(BS, 0);
+  for (size_t j = 0; j < L; j++) {
+    T acc = neutral_element<T, O>();
+    ripple_parallel(BS, 1);
+    for (size_t i = 0; i < K; i++)
+      acc = reduce_update<T, O>(acc, X[i][j]);
+    Y[j] = reduce_op<0b10, O>(acc);
+  }
+}
+
+template <ReduceOp O, unsigned BK, unsigned BL, unsigned K, unsigned L, typename T>
+void reduce_2d_2(int N, const T (*X)[K][L], T (*Y)[K]) {
   for (int i = 0; i < N; i++)
-    Y[i][v0] = reduce_op<0b10, O>(X[i][v1][v0]);
+    reduce_2d_1<O, BK, BL, L>(K, X[i], Y[i]);
 }
 
 template <typename T, unsigned K, ReduceOp O>
@@ -147,7 +194,7 @@ void reduce_2d_2_ref(int N, const T (*X)[K][L], T (*Y)[L]) {
 
 using namespace ripple_test_suite;
 
-template <typename T, ReduceOp O, unsigned SigDigits = 10, unsigned K = 23>
+template <typename T, ReduceOp O, unsigned SigDigits, unsigned BK, size_t K = 23>
 class Reduce1DTest : public Test {
   static constexpr int N = 128;
   T X[N][K], XRed[N], XRedRef[N];
@@ -163,14 +210,14 @@ public:
     reduce_1d_ref<T, K, O>(N, X, XRedRef);
   }
 
-  void run(unsigned) override { reduce_1d<T, K, O>(N, X, XRed); }
+  void run(unsigned) override { reduce_1d<O, BK, K>(N, X, XRed); }
 
   bool verify() const override {
     return isclose(N, &(XRed[0]), &(XRedRef[0]), pow(0.1, SigDigits));
   }
 };
 
-template <typename T, ReduceOp O, unsigned SigDigits = 10, unsigned K = 23,
+template <typename T, ReduceOp O, unsigned SigDigits, unsigned BK, unsigned BL, unsigned K = 23,
           unsigned L = 23>
 class Reduce2DTest : public Test {
   static constexpr int N = 128;
@@ -193,9 +240,9 @@ public:
   }
 
   void run(unsigned) override {
-    reduce_2d_0<T, K, L, O>(N, X, XRed0);
-    reduce_2d_1<T, K, L, O>(N, X, XRed1);
-    reduce_2d_2<T, K, L, O>(N, X, XRed2);
+    reduce_2d_0<O, BK, BL, K, L>(N, X, XRed0);
+    reduce_2d_1<O, BK, BL, K, L>(N, X, XRed1);
+    reduce_2d_2<O, BK, BL, K, L>(N, X, XRed2);
   }
 
   bool verify() const override {
@@ -207,45 +254,45 @@ public:
   }
 };
 
-DefineTest<Reduce1DTest<float, ReduceOp::ADD, 2>>
+DefineTest<Reduce1DTest<float, ReduceOp::ADD, 2, 32>>
     TF32ReduceAdd1D("ReduceTest1D<+,f32>");
-DefineTest<Reduce2DTest<float, ReduceOp::ADD, 2>>
+DefineTest<Reduce2DTest<float, ReduceOp::ADD, 2, 4, 8>>
     TF32ReduceAdd2D("ReduceTest2D<+,f32>");
-DefineTest<Reduce1DTest<double, ReduceOp::ADD, 4>>
+DefineTest<Reduce1DTest<double, ReduceOp::ADD, 4, 8>>
     TF64ReduceAdd1D("ReduceTest1D<+,f64>");
-DefineTest<Reduce2DTest<double, ReduceOp::ADD, 4>>
+DefineTest<Reduce2DTest<double, ReduceOp::ADD, 4, 4, 8>>
     TF64ReduceAdd2D("ReduceTest2D<+,f64>");
 
-DefineTest<Reduce1DTest<float, ReduceOp::MAX>>
+DefineTest<Reduce1DTest<float, ReduceOp::MAX, 10, 32>>
     TF32ReduceMax1D("ReduceTest1D<max,f32>");
-DefineTest<Reduce2DTest<float, ReduceOp::MAX>>
+DefineTest<Reduce2DTest<float, ReduceOp::MAX, 10, 4, 8>>
     TF32ReduceMax2D("ReduceTest2D<max,f32>");
-DefineTest<Reduce1DTest<double, ReduceOp::MAX>>
+DefineTest<Reduce1DTest<double, ReduceOp::MAX, 10, 8>>
     TF64ReduceMax1D("ReduceTest1D<max,f64>");
-DefineTest<Reduce2DTest<double, ReduceOp::MAX>>
+DefineTest<Reduce2DTest<double, ReduceOp::MAX, 10, 4, 8>>
     TF64ReduceMax2D("ReduceTest2D<max,f64>");
 
-DefineTest<Reduce1DTest<float, ReduceOp::MIN>>
+DefineTest<Reduce1DTest<float, ReduceOp::MIN, 10, 32>>
     TF32ReduceMin1D("ReduceTest1D<min,f32>");
-DefineTest<Reduce2DTest<float, ReduceOp::MIN>>
+DefineTest<Reduce2DTest<float, ReduceOp::MIN, 10, 4, 8>>
     TF32ReduceMin2D("ReduceTest2D<min,f32>");
-DefineTest<Reduce1DTest<double, ReduceOp::MIN>>
+DefineTest<Reduce1DTest<double, ReduceOp::MIN, 10, 8>>
     TF64ReduceMin1D("ReduceTest1D<min,f64>");
-DefineTest<Reduce2DTest<double, ReduceOp::MIN>>
+DefineTest<Reduce2DTest<double, ReduceOp::MIN, 10, 4, 8>>
     TF64ReduceMin2D("ReduceTest2D<min,f64>");
 
 #if __has_bf16__
-DefineTest<Reduce1DTest<__bf16, ReduceOp::ADD, 2>>
+DefineTest<Reduce1DTest<__bf16, ReduceOp::ADD, 2, 32>>
     TBF16ReduceAdd1D("ReduceTest1D<+,bf16>");
-DefineTest<Reduce2DTest<__bf16, ReduceOp::ADD, 2>>
+DefineTest<Reduce2DTest<__bf16, ReduceOp::ADD, 2, 4, 8>>
     TBF16ReduceAdd2D("ReduceTest2D<+,bf16>");
-DefineTest<Reduce1DTest<__bf16, ReduceOp::MAX>>
+DefineTest<Reduce1DTest<__bf16, ReduceOp::MAX, 10, 32>>
     TBF16ReduceMax1D("ReduceTest1D<max,bf16>");
-DefineTest<Reduce2DTest<__bf16, ReduceOp::MAX>>
+DefineTest<Reduce2DTest<__bf16, ReduceOp::MAX, 10, 4, 8>>
     TBF16ReduceMax2D("ReduceTest2D<max,bf16>");
-DefineTest<Reduce1DTest<__bf16, ReduceOp::MIN>>
+DefineTest<Reduce1DTest<__bf16, ReduceOp::MIN, 10, 32>>
     TBF16ReduceMin1D("ReduceTest1D<min,bf16>");
-DefineTest<Reduce2DTest<__bf16, ReduceOp::MIN>>
+DefineTest<Reduce2DTest<__bf16, ReduceOp::MIN, 10, 4, 8>>
     TBF16ReduceMin2D("ReduceTest2D<min,bf16>");
 #endif
 
