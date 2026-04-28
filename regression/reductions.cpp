@@ -230,7 +230,7 @@ public:
       for (int k = 0; k < K; k++) {
         for (int l = 0; l < L; l++) {
           X[i][k][l] = std::numeric_limits<T>::max() *
-                       (randn() - (O == ReduceOp::ADD ? 0 : 0.5));
+                       (randn() - (O == ReduceOp::ADD ? 0 : 0.5)) / (K * L) / 2;
         }
       }
     }
