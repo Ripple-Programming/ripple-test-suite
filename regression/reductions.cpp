@@ -139,7 +139,7 @@ void reduce_2d_2(size_t K, const T (*X)[L], T *Y) {
 template <ReduceOp O, unsigned BK, unsigned BL, unsigned K, unsigned L, typename T>
 void reduce_2d_2(int N, const T (*X)[K][L], T (*Y)[K]) {
   for (int i = 0; i < N; i++)
-    reduce_2d_1<O, BK, BL, L>(K, X[i], Y[i]);
+    reduce_2d_2<O, BK, BL, L>(K, X[i], Y[i]);
 }
 
 template <typename T, unsigned K, ReduceOp O>
