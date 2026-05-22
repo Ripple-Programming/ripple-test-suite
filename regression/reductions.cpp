@@ -139,7 +139,7 @@ void reduce_2d_2(size_t K, const T (*X)[L], T *Y) {
 template <ReduceOp O, unsigned BK, unsigned BL, unsigned K, unsigned L, typename T>
 void reduce_2d_2(int N, const T (*X)[K][L], T (*Y)[K]) {
   for (int i = 0; i < N; i++)
-    reduce_2d_1<O, BK, BL, L>(K, X[i], Y[i]);
+    reduce_2d_2<O, BK, BL, L>(K, X[i], Y[i]);
 }
 
 template <typename T, unsigned K, ReduceOp O>
@@ -230,7 +230,7 @@ public:
       for (int k = 0; k < K; k++) {
         for (int l = 0; l < L; l++) {
           X[i][k][l] = std::numeric_limits<T>::max() *
-                       (randn() - (O == ReduceOp::ADD ? 0 : 0.5));
+                       (randn() - (O == ReduceOp::ADD ? 0 : 0.5)) / (K * L) / 2;
         }
       }
     }
