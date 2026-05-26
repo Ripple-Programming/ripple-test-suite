@@ -21,7 +21,7 @@ template <ReduceOp Op, typename T> struct Reduce;
 template <typename T> struct Reduce<ADD, T> {
   // TODO: Could be constexpr variable.
   static T neutral_element() { return 0; }
-  template <uint64_t mask> static T op(const T &x) {
+  template <unsigned mask> static T op(const T &x) {
     return ripple_reduceadd(mask, x);
   }
   static T update(T acc, T x) { return acc + x; }
@@ -33,7 +33,7 @@ template <typename T> struct Reduce<MIN, T> {
                ? std::numeric_limits<T>::infinity()
                : std::numeric_limits<T>::max();
   }
-  template <uint64_t mask> static T op(const T &x) {
+  template <unsigned mask> static T op(const T &x) {
     return ripple_reducemin(mask, x);
   }
   static T update(T acc, T x) { return std::min(acc, x); }
@@ -45,7 +45,7 @@ template <typename T> struct Reduce<MAX, T> {
                ? -std::numeric_limits<T>::infinity()
                : std::numeric_limits<T>::min();
   }
-  template <uint64_t mask> static T op(const T &x) {
+  template <unsigned mask> static T op(const T &x) {
     return ripple_reducemax(mask, x);
   }
   static T update(T acc, T x) { return std::max(acc, x); }
@@ -55,7 +55,7 @@ template <typename T, ReduceOp Op> T neutral_element() {
   return Reduce<Op, T>::neutral_element();
 }
 
-template <uint64_t mask, ReduceOp Op, typename T> T reduce_op(const T &x) {
+template <unsigned mask, ReduceOp Op, typename T> T reduce_op(const T &x) {
   return Reduce<Op, T>::template op<mask>(x);
 }
 
