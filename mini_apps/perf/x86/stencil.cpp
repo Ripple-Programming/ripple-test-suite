@@ -9,7 +9,6 @@
 
 #include <cstddef>
 #include <ripple.h>
-#include <stdint.h>
 #include <vector>
 
 #include <ripple-test-suite/ripple-test-suite.h>

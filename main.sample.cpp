@@ -104,12 +104,12 @@ void freeVtcmHap(unsigned int ctx) { HAP_compute_res_release(ctx); };
 
 #if defined __hexagon__ && defined HEXAGON_STANDALONE
 #define DECL_HEXAGON_REG(R)                                                    \
-  inline uint32_t hexagon_read_##R() {                                         \
-    uint32_t x;                                                                \
+  inline unsigned int hexagon_read_##R() {                                         \
+  unsigned int x;                                                                \
     __asm __volatile("%0=" #R : "=r"(x));                                      \
     return x;                                                                  \
   }                                                                            \
-  inline void hexagon_write_##R(uint32_t x) {                                  \
+  inline void hexagon_write_##R(unsigned int x) {                                  \
     __asm __volatile(#R "=%0" : : "r"(x));                                     \
   }
 
