@@ -280,7 +280,7 @@ class AmbientOcclussion : public Test {
   static constexpr int nsubsamples = 2;
   Sphere spheres[3];
   Plane plane;
-  uint8_t img[height * width * 3];
+  unsigned char img[height * width * 3];
 
 public:
   AmbientOcclussion(TestFramework &TestFramework) : Test(TestFramework) {

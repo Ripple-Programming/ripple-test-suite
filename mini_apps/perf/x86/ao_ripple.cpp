@@ -9,6 +9,7 @@
 
 #include <ripple.h>
 #include <ripple_math.h>
+#include <cstdint>
 #include <stdlib.h>
 #include <string.h>
 
@@ -340,9 +341,9 @@ render(unsigned char *img, const Sphere *spheres, const Plane *plane, int w,
       fimg_g_c = ripple_shuffle(fimg_g_c, src_fimg_g_fn);
       fimg_b_c = ripple_shuffle(fimg_b_c, src_fimg_b_fn);
 
-      uint8_t mask_0 = v0 % 3;
-      uint8_t mask_1 = (v0 + 8) % 3;
-      uint8_t mask_2 = (v0 + 16) % 3;
+      unsigned mask_0 = v0 % 3;
+      unsigned mask_1 = (v0 + 8) % 3;
+      unsigned mask_2 = (v0 + 16) % 3;
       unsigned char val_to_store_0 =
           (mask_0 == 0) ? fimg_r_c : ((mask_0 == 1) ? fimg_g_c : fimg_b_c);
       unsigned char val_to_store_1 =
@@ -408,13 +409,13 @@ public:
   }
 };
 
-extern "C" void ao_ispc(int w, int h, int nsubsamples, uint8_t image[]);
+extern "C" void ao_ispc(int w, int h, int nsubsamples, unsigned char image[]);
 
 class AmbientOcclussionISPC : public Test {
   static constexpr int height = 256;
   static constexpr int width = 256;
   static constexpr int nsubsamples = 2;
-  uint8_t img[height * width * 3];
+  unsigned char img[height * width * 3];
 
 public:
   AmbientOcclussionISPC(TestFramework &TestFramework) : Test(TestFramework) {

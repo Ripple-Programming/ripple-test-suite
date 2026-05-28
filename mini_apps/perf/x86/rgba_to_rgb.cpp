@@ -29,12 +29,12 @@ size_t pick_rgb(size_t i, size_t n) {
     return 3 + 4 * (i - dst_size);
 }
 
-void rgba_to_rgb_ripple(size_t N, const uint8_t *Rgba, uint8_t *Rgb) {
+void rgba_to_rgb_ripple(size_t N, const unsigned char *Rgba, unsigned char *Rgb) {
   ripple_block_t BS = ripple_set_block_shape(0, 64);
   size_t v0 = ripple_id(BS, 0);
-  uint64_t nvecs = (N * 4) / 64;
+  size_t nvecs = (N * 4) / 64;
 
-  uint64_t ivec;
+  size_t ivec;
   for (ivec = 0; ivec < nvecs - 1; ++ivec)
     Rgb[48 * ivec + v0] = ripple_shuffle(Rgba[64 * ivec + v0], pick_rgb);
   if (v0 < 48)
@@ -45,7 +45,7 @@ void rgba_to_rgb_ripple(size_t N, const uint8_t *Rgba, uint8_t *Rgb) {
       Rgb[48 * ivec + v0] = ripple_shuffle(Rgba[64 * ivec + v0], pick_rgb);
 }
 
-void rgba_to_rgb_ref(size_t N, const uint8_t *Rgba, uint8_t *Rgb) {
+void rgba_to_rgb_ref(size_t N, const unsigned char *Rgba, unsigned char *Rgb) {
   for (int i = 0; i < N; i++)
     for (int j = 0; j < 3; j++)
       Rgb[3 * i + j] = Rgba[4 * i + j];
@@ -62,22 +62,22 @@ enum KernelT {
 
 template <KernelT KT> class RGBAToRGB : public Test {
   static constexpr int N = 11729;
-  uint8_t X[N][4], Y[N][3], YRef[N][3];
+  unsigned char X[N * 4], Y[N * 3], YRef[N * 3];
 
 public:
   RGBAToRGB(TestFramework &TestFramework) : Test(TestFramework) {
     for (int i = 0; i < N; i++)
       for (int j = 0; j < 4; j++)
-        X[i][j] = randn() * 250;
+        X[i * 4 + j] = randn() * 250;
 
-    rgba_to_rgb_ref(N, (uint8_t *)X, (uint8_t *)YRef);
+    rgba_to_rgb_ref(N, X, YRef);
   }
 
   void run(unsigned) override {
     if (KT == KernelT::Reference)
-      rgba_to_rgb_ref(N, (uint8_t *)X, (uint8_t *)Y);
+      rgba_to_rgb_ref(N, X, Y);
     if (KT == KernelT::RippleOpt)
-      rgba_to_rgb_ripple(N, (uint8_t *)X, (uint8_t *)Y);
+      rgba_to_rgb_ripple(N, X, Y);
   }
 
   bool verify() const override { return equal(1e-5, Y, YRef); }
