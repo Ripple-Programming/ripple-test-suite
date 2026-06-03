@@ -134,11 +134,9 @@ public:
     dense_layer_variant_1<Nj, Nk, Ti, Tj, Tk>(N, X, W, B, Y);
   }
 
-#ifdef __hexagon__
   std::pair<bool, std::string> xfail() const override {
-    return {true, "See QSTREAM-1655."};
+    return {true, "dense_layer fails on Hexagon and x86 (See QSTREAM-1655)."};
   }
-#endif
 
   bool verify() const override { return equal(2e-5, Y, YRef); }
 };

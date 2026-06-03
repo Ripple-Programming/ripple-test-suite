@@ -281,7 +281,9 @@ DefineTest<Reduce1DTest<double, ReduceOp::MIN, 10, 8>>
 DefineTest<Reduce2DTest<double, ReduceOp::MIN, 10, 4, 8>>
     TF64ReduceMin2D("ReduceTest2D<min,f64>");
 
-#if __has_bf16__
+// aarch64 does not lower bf16 masked stores, see
+// https://github.com/llvm/llvm-project/issues/201149.
+#if __has_bf16__ && !defined __aarch64__
 DefineTest<Reduce1DTest<__bf16, ReduceOp::ADD, 2, 32>>
     TBF16ReduceAdd1D("ReduceTest1D<+,bf16>");
 DefineTest<Reduce2DTest<__bf16, ReduceOp::ADD, 2, 4, 8>>
